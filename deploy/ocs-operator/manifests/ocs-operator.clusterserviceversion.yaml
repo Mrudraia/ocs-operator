@@ -56,7 +56,7 @@ metadata:
       ]
     capabilities: Deep Insights
     categories: Storage
-    containerImage: quay.io/ocs-dev/ocs-operator:latest
+    containerImage: quay.io/rh_ee_mrudraia/ocs-operator:jun19
     description: Red Hat OpenShift Container Storage provides hyperconverged storage
       for applications within an OpenShift cluster.
     external.features.ocs.openshift.io/supported-platforms: '["BareMetal", "None",
@@ -583,7 +583,7 @@ spec:
                     fieldRef:
                       fieldPath: metadata.annotations['olm.targetNamespaces']
                 - name: OCS_METRICS_EXPORTER_IMAGE
-                  value: quay.io/ocs-dev/ocs-metrics-exporter:latest
+                  value: quay.io/rh_ee_mrudraia/ocs-metrics-exporter:jun19
                 - name: ROOK_CEPH_IMAGE
                   value: quay.io/ocs-dev/rook-ceph:vmaster-19a200ac8
                 - name: CEPH_IMAGE
@@ -593,14 +593,14 @@ spec:
                 - name: NOOBAA_DB_IMAGE
                   value: docker.io/centos/postgresql-12-centos8
                 - name: PROVIDER_API_SERVER_IMAGE
-                  value: quay.io/ocs-dev/ocs-operator:latest
+                  value: quay.io/rh_ee_mrudraia/ocs-operator:jun19
                 - name: ONBOARDING_VALIDATION_KEYS_GENERATOR_IMAGE
-                  value: quay.io/ocs-dev/ocs-operator:latest
+                  value: quay.io/rh_ee_mrudraia/ocs-operator:jun19
                 - name: OPERATOR_NAMESPACE
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.namespace
-                image: quay.io/ocs-dev/ocs-operator:latest
+                image: quay.io/rh_ee_mrudraia/ocs-operator:jun19
                 imagePullPolicy: Always
                 name: ocs-operator
                 readinessProbe:
@@ -657,7 +657,7 @@ spec:
                 - name: ONBOARDING_TOKEN_LIFETIME
                 - name: UX_BACKEND_PORT
                 - name: TLS_ENABLED
-                image: quay.io/ocs-dev/ocs-operator:latest
+                image: quay.io/rh_ee_mrudraia/ocs-operator:jun19
                 imagePullPolicy: IfNotPresent
                 name: ux-backend-server
                 ports:
@@ -667,8 +667,6 @@ spec:
                   readOnlyRootFilesystem: true
                   runAsNonRoot: true
                 volumeMounts:
-                - mountPath: /etc/private-key
-                  name: onboarding-private-key
                 - mountPath: /etc/tls/private
                   name: ux-cert-secret
               - args:
@@ -704,10 +702,6 @@ spec:
                 operator: Equal
                 value: "true"
               volumes:
-              - name: onboarding-private-key
-                secret:
-                  optional: true
-                  secretName: onboarding-private-key
               - name: ux-proxy-secret
                 secret:
                   secretName: ux-backend-proxy
@@ -748,7 +742,7 @@ spec:
     name: ceph-container
   - image: quay.io/ocs-dev/ocs-must-gather:latest
     name: ocs-must-gather
-  - image: quay.io/ocs-dev/ocs-metrics-exporter:latest
+  - image: quay.io/rh_ee_mrudraia/ocs-metrics-exporter:jun19
     name: ocs-metrics-exporter
   - image: quay.io/openshift/origin-oauth-proxy:4.16.0
     name: ux-backend-oauth-image

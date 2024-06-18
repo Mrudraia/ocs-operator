@@ -1,6 +1,7 @@
 package util
 
 import (
+	"context"
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
@@ -10,11 +11,25 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/red-hat-storage/ocs-operator/v4/services"
+	v1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
+)
+
+const (
+	// Name of existing public key which is used ocs-operator
+	onboardingValidationPublicKeySecretName  = "onboarding-ticket-key"
+	onboardingValidationPrivateKeySecretName = "onboarding-private-key"
+	storageClusterName                       = "ocs-storagecluster"
 )
 
 // GenerateOnboardingToken generates a token valid for a duration of "tokenLifetimeInHours".
@@ -41,7 +56,7 @@ func GenerateOnboardingToken(tokenLifetimeInHours int, privateKeyPath string) (s
 		return "", fmt.Errorf("failed to hash onboarding token payload: %v", err)
 	}
 
-	privateKey, err := readAndDecodePrivateKey(privateKeyPath)
+	privateKey, err := readAndDecodePrivateKey()
 	if err != nil {
 		return "", fmt.Errorf("failed to read and decode private key: %v", err)
 	}
@@ -59,16 +74,50 @@ func GenerateOnboardingToken(tokenLifetimeInHours int, privateKeyPath string) (s
 	return fmt.Sprintf("%s.%s", encodedPayload, encodedSignature), nil
 }
 
-func readAndDecodePrivateKey(privateKeyPath string) (*rsa.PrivateKey, error) {
-	pemString, err := os.ReadFile(privateKeyPath)
+func readAndDecodePrivateKey() (*rsa.PrivateKey, error) {
+	cl, err := newClient()
 	if err != nil {
-		return nil, fmt.Errorf("failed to read private key: %v", err)
+		klog.Exitf("failed to create client: %v", err)
+	}
+	ctx := context.Background()
+	operatorNamespace, err := GetOperatorNamespace()
+	if err != nil {
+		klog.Exitf("unable to get operator namespace: %v", err)
 	}
 
-	Block, _ := pem.Decode(pemString)
+	privateSecret := &corev1.Secret{}
+	privateSecret.Name = onboardingValidationPrivateKeySecretName
+	privateSecret.Namespace = operatorNamespace
+	err = cl.Get(ctx, types.NamespacedName{Namespace: operatorNamespace}, privateSecret)
+	if err != nil && !kerrors.IsNotFound(err) {
+		klog.Exitf("failed to delete private secret: %v", err)
+	}
+
+	Block, _ := pem.Decode(privateSecret.Data["key"])
 	privateKey, err := x509.ParsePKCS1PrivateKey(Block.Bytes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse private key: %v", err)
 	}
 	return privateKey, nil
+}
+
+func newClient() (client.Client, error) {
+	klog.Info("Setting up k8s client")
+	scheme := runtime.NewScheme()
+	if err := v1.AddToScheme(scheme); err != nil {
+		return nil, err
+	}
+	if err := corev1.AddToScheme(scheme); err != nil {
+		return nil, err
+	}
+	config, err := config.GetConfig()
+	if err != nil {
+		return nil, err
+	}
+	k8sClient, err := client.New(config, client.Options{Scheme: scheme})
+	if err != nil {
+		return nil, err
+	}
+
+	return k8sClient, nil
 }
